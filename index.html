@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSL Certificates Management</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <h2 class="mb-4">SSL Certificates Management</h2>
+
+        <!-- Add Certificate Button -->
+        <button id="showAddCertificateForm" class="btn btn-primary mb-3">Add SSL Certificate</button>
+
+        <!-- Add Certificate Form -->
+        <div id="addCertificateFormContainer" class="card mb-4" style="display: none;">
+            <div class="card-header">Add SSL Certificate</div>
+            <div class="card-body">
+                <form id="addCertificateForm">
+                    <div class="form-group">
+                        <label for="commonName">Common Name</label>
+                        <input type="text" class="form-control" id="commonName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="sans">SANs (comma separated)</label>
+                        <input type="text" class="form-control" id="sans" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="vipName">VIP Name</label>
+                        <input type="text" class="form-control" id="vipName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="deviceName">Device Name</label>
+                        <input type="text" class="form-control" id="deviceName" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Certificate</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Certificates Table -->
+        <div class="card mb-4">
+            <div class="card-header">View SSL Certificates</div>
+            <div class="card-body">
+                <table class="table table-bordered" id="certificatesTable">
+                    <thead>
+                        <tr>
+                            <th>Common Name</th>
+                            <th>SANs</th>
+                            <th>VIP Name</th>
+                            <th>Device Name</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Show Add Certificate Form
+            $('#showAddCertificateForm').on('click', function() {
+                $('#addCertificateFormContainer').toggle();
+            });
+
+            // Add Certificate
+            $('#addCertificateForm').on('submit', function(e) {
+                e.preventDefault();
+                const data = {
+                    common_name: $('#commonName').val(),
+                    sans: $('#sans').val().split(',').map(item => item.trim()),
+                    vip_name: $('#vipName').val(),
+                    device_name: $('#deviceName').val()
+                };
+                $.ajax({
+                    type: 'POST',
+                    url: '/add_certificate',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function(response) {
+                        alert(response.message);
+                        $('#addCertificateForm')[0].reset();
+                        $('#addCertificateFormContainer').hide();
+                        loadCertificates();
+                    }
+                });
+            });
+
+            // Load Certificates
+            function loadCertificates() {
+                $.ajax({
+                    type: 'GET',
+                    url: '/certificates',
+                    success: function(data) {
+                        const tableBody = $('#certificatesTable tbody');
+                        tableBody.empty();
+                        data.forEach(cert => {
+                            const row = `<tr>
+                                <td>${cert.common_name}</td>
+                                <td>${cert.sans.join(', ')}</td>
+                                <td>${cert.vip_name}</td>
+                                <td>${cert.device_name}</td>
+                                <td><button class="btn btn-danger btn-sm delete-btn" data-common-name="${cert.common_name}">Delete</button></td>
+                            </tr>`;
+                            tableBody.append(row);
+                        });
+
+                        // Add delete button event listener
+                        $('.delete-btn').on('click', function() {
+                            const commonName = $(this).data('common-name');
+                            deleteCertificate(commonName);
+                        });
+                    }
+                });
+            }
+
+            // Delete Certificate
+            function deleteCertificate(commonName) {
+                $.ajax({
+                    type: 'DELETE',
+                    url: '/delete_certificate',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ common_name: commonName }),
+                    success: function(response) {
+                        alert(response.message);
+                        loadCertificates();
+                    }
+                });
+            }
+
+            // Initial load of certificates
+            loadCertificates();
+        });
+    </script>
+</body>
+</html>
